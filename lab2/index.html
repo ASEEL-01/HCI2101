@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لعبة تحدي الذاكرة | مشروع HCI2101</title>
+    <style>
+        :root {
+            --primary: #4a90e2;
+            --secondary: #f39c12;
+            --bg: #f0f2f5;
+            --card-back: #2c3e50;
+            --text: #333;
+        }
+
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+
+        body {
+            background-color: var(--bg);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            align-items: center;
+            color: var(--text);
+        }
+
+        /* الشاشات */
+        .screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            width: 100%;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        .active { display: flex; }
+
+        h1 { color: var(--primary); margin-bottom: 20px; }
+
+        /* شاشة البداية */
+        .input-group { margin: 10px 0; width: 100%; }
+        input {
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            width: 80%;
+            font-size: 16px;
+            outline: none;
+        }
+        input:focus { border-color: var(--primary); }
+
+        button {
+            padding: 12px 30px;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            cursor: pointer;
+            margin: 10px;
+            transition: transform 0.2s, background 0.2s;
+        }
+        button:hover { background-color: #357abd; transform: scale(1.05); }
+
+        /* منطقة اللعبة */
+        .game-stats {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            margin-bottom: 20px;
+            background: white;
+            padding: 10px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            perspective: 1000px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            width: 70px;
+            height: 90px;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.5s;
+            cursor: pointer;
+        }
+
+        @media (min-width: 400px) {
+            .card { width: 85px; height: 110px; }
+            .grid { gap: 15px; }
+        }
+
+        .card.flipped { transform: rotateY(180deg); }
+
+        .card-front, .card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .card-front { background-color: white; transform: rotateY(180deg); }
+        .card-back { background-color: var(--card-back); color: white; }
+
+        /* التذييل الإلزامي */
+        footer {
+            background-color: #fff;
+            padding: 15px;
+            width: 100%;
+            text-align: center;
+            border-top: 3px solid var(--primary);
+            margin-top: auto;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+        .footer-info { font-weight: bold; color: #2c3e50; }
+
+        .turn-highlight {
+            border: 2px solid var(--secondary);
+            padding: 5px 10px;
+            border-radius: 5px;
+            background: #fff8e1;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="start-screen" class="screen active">
+        <h1>🎮 تحدي الذاكرة</h1>
+        <p>اختر نمط اللعب وأدخل الأسماء:</p>
+        <div class="input-group">
+            <input type="text" id="p1-name" placeholder="اسم اللاعب الأول" value="اللاعب 1">
+        </div>
+        <div id="p2-container" class="input-group" style="display: none;">
+            <input type="text" id="p2-name" placeholder="اسم اللاعب الثاني" value="اللاعب 2">
+        </div>
+        <div>
+            <button onclick="setMode(1)">لاعب واحد</button>
+            <button onclick="setMode(2)">لاعبين</button>
+        </div>
+        <button id="start-btn" style="background-color: #27ae60; margin-top: 20px;" onclick="startGame()">ابدأ اللعب الآن</button>
+    </div>
+
+    <div id="game-screen" class="screen">
+        <div class="game-stats">
+            <div id="p1-stat"><span id="p1-label"></span>: <span id="p1-score">0</span></div>
+            <div id="p2-stat" style="display: none;"><span id="p2-label"></span>: <span id="p2-score">0</span></div>
+        </div>
+        <div class="grid" id="grid"></div>
+        <button onclick="location.reload()">إعادة تعيين</button>
+    </div>
+
+    <div id="end-screen" class="screen">
+        <h1 id="winner-text">تهانينا!</h1>
+        <button onclick="location.reload()">العب مرة أخرى</button>
+    </div>
+
+    <footer>
+        <div class="footer-info">الاسم: ASEEL MOHAMMED DHAYF ALLAH ALTHOMALI (اصيل محمد ابن ضيف الله الثمالي)</div>
+        <div class="footer-info">الرقم الجامعي: 446011662</div>
+        <div class="footer-info">إشراف: Mohammed Ahmed Jabali</div>
+    </footer>
+
+    <script>
+        let mode = 1;
+        let currentPlayer = 1;
+        let scores = { 1: 0, 2: 0 };
+        let flippedCards = [];
+        let matchedPairs = 0;
+        const emojis = ['🍎', '🍎', '🚀', '🚀', '💎', '💎', '⚽', '⚽', '🎨', '🎨', '👻', '👻', '🍕', '🍕', '🦁', '🦁'];
+
+        function setMode(m) {
+            mode = m;
+            document.getElementById('p2-container').style.display = (m === 2) ? 'block' : 'none';
+        }
+
+        function startGame() {
+            const n1 = document.getElementById('p1-name').value || "اللاعب 1";
+            const n2 = document.getElementById('p2-name').value || "اللاعب 2";
+            
+            document.getElementById('p1-label').innerText = n1;
+            document.getElementById('p2-label').innerText = n2;
+            
+            if(mode === 2) {
+                document.getElementById('p2-stat').style.display = 'block';
+                updateTurnUI();
+            }
+
+            document.getElementById('start-screen').classList.remove('active');
+            document.getElementById('game-screen').classList.add('active');
+            initGrid();
+        }
+
+        function initGrid() {
+            const grid = document.getElementById('grid');
+            const shuffled = emojis.sort(() => Math.random() - 0.5);
+            
+            shuffled.forEach((emoji, index) => {
+                const card = document.createElement('div');
+                card.classList.add('card');
+                card.dataset.emoji = emoji;
+                card.dataset.index = index;
+                card.innerHTML = `
+                    <div class="card-back">?</div>
+                    <div class="card-front">${emoji}</div>
+                `;
+                card.addEventListener('click', flipCard);
+                grid.appendChild(card);
+            });
+        }
+
+        function flipCard() {
+            if (flippedCards.length < 2 && !this.classList.contains('flipped')) {
+                this.classList.add('flipped');
+                flippedCards.push(this);
+
+                if (flippedCards.length === 2) {
+                    setTimeout(checkMatch, 700);
+                }
+            }
+        }
+
+        function checkMatch() {
+            const [c1, c2] = flippedCards;
+            if (c1.dataset.emoji === c2.dataset.emoji) {
+                scores[currentPlayer]++;
+                matchedPairs++;
+                updateScores();
+                if (matchedPairs === emojis.length / 2) endGame();
+            } else {
+                c1.classList.remove('flipped');
+                c2.classList.remove('flipped');
+                if (mode === 2) {
+                    currentPlayer = currentPlayer === 1 ? 2 : 1;
+                    updateTurnUI();
+                }
+            }
+            flippedCards = [];
+        }
+
+        function updateScores() {
+            document.getElementById('p1-score').innerText = scores[1];
+            document.getElementById('p2-score').innerText = scores[2];
+        }
+
+        function updateTurnUI() {
+            document.getElementById('p1-stat').className = (currentPlayer === 1) ? 'turn-highlight' : '';
+            document.getElementById('p2-stat').className = (currentPlayer === 2) ? 'turn-highlight' : '';
+        }
+
+        function endGame() {
+            document.getElementById('game-screen').classList.remove('active');
+            document.getElementById('end-screen').classList.add('active');
+            
+            let msg = "انتهت اللعبة!";
+            if (mode === 2) {
+                const n1 = document.getElementById('p1-label').innerText;
+                const n2 = document.getElementById('p2-label').innerText;
+                if (scores[1] > scores[2]) msg = `الفائز هو: ${n1} 🎉`;
+                else if (scores[2] > scores[1]) msg = `الفائز هو: ${n2} 🎉`;
+                else msg = "تعادل!";
+            }
+            document.getElementById('winner-text').innerText = msg;
+        }
+    </script>
+</body>
+</html>
